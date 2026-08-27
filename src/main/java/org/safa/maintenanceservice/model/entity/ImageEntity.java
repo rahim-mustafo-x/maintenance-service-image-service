@@ -2,7 +2,7 @@ package org.safa.maintenanceservice.model.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.safa.maintenanceservice.models.model.ImageType;
+import org.safa.maintenanceservice.model.ImageType;
 import java.util.UUID;
 
 @Entity

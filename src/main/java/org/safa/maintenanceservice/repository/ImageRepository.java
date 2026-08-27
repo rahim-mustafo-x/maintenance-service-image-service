@@ -1,7 +1,7 @@
 package org.safa.maintenanceservice.repository;
 
 import org.safa.maintenanceservice.model.entity.ImageEntity;
-import org.safa.maintenanceservice.models.model.ImageType;
+import org.safa.maintenanceservice.model.ImageType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

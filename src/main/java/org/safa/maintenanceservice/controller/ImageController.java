@@ -1,11 +1,14 @@
 package org.safa.maintenanceservice.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.safa.maintenanceservice.model.ImageType;
 import org.safa.maintenanceservice.model.dto.ApiResponse;
 import org.safa.maintenanceservice.models.dto.image.ImageByteResponse;
 import org.safa.maintenanceservice.model.exceptions.NotFoundException;
-import org.safa.maintenanceservice.models.model.ImageType;
 import org.safa.maintenanceservice.service.image.ImageService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +18,10 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/image")
+@Slf4j
+@RequiredArgsConstructor
 public class ImageController {
-    @Autowired
-    private ImageService imageService;
+    private final ImageService imageService;
 
     /**
      * When on the parts of setting a profile image it is optional to set one.
@@ -30,13 +34,14 @@ public class ImageController {
      * </pre>
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<?>> saveImage(@RequestPart MultipartFile file, @RequestParam long ownerId, @RequestParam ImageType imageType) {
+    public ResponseEntity<ApiResponse<?>> saveImage(@RequestPart MultipartFile file, @RequestParam long ownerId, @RequestParam ImageType imageType, HttpServletRequest request) {
         try {
+            String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(ApiResponse.builder()
                             .code(HttpStatus.CREATED.value())
-                            .data(imageService.save(file, imageType, ownerId))
+                            .data(imageService.save(file, imageType, ownerId, accessToken))
                             .message(null)
                             .build());
         }catch (NotFoundException e){
@@ -61,7 +66,7 @@ public class ImageController {
     public ResponseEntity<byte[]> getImage(@PathVariable UUID imageId) {
         try {
             ImageByteResponse imageAsByteArray = imageService.getImageAsByteArray(imageId);
-            return ResponseEntity.status(HttpStatus.FOUND)
+            return ResponseEntity.status(HttpStatus.OK)
                     .contentType(MediaType.parseMediaType(imageAsByteArray.contentType()))
                     .body(imageAsByteArray.data());
         } catch (NotFoundException e) {
@@ -69,14 +74,16 @@ public class ImageController {
         }
     }
 
-    @GetMapping("/get-data/{imageId}")
+    @GetMapping("/data/{imageId}")
     public ResponseEntity<ApiResponse<?>> getImageData(@PathVariable UUID imageId) {
         try {
-            return ResponseEntity.status(HttpStatus.FOUND)
+            var data = imageService.getImageResponse(imageId);
+            log.debug(data.toString());
+            return ResponseEntity.status(HttpStatus.OK)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(ApiResponse.builder()
-                            .code(HttpStatus.FOUND.value())
-                            .data(imageService.getImageResponse(imageId))
+                            .code(HttpStatus.OK.value())
+                            .data(data)
                             .build());
         }catch (NotFoundException e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.MULTIPART_FORM_DATA)
@@ -87,13 +94,14 @@ public class ImageController {
         }
     }
     @PutMapping
-    public ResponseEntity<ApiResponse<?>> updateImage(@RequestPart MultipartFile file, @RequestParam UUID imageId, @RequestParam long ownerId) {
+    public ResponseEntity<ApiResponse<?>> updateImage(@RequestPart MultipartFile file, @RequestParam UUID imageId, @RequestParam long ownerId, HttpServletRequest request) {
         try {
+            String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION);
             return ResponseEntity.status(HttpStatus.ACCEPTED)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(ApiResponse.builder()
                             .code(HttpStatus.ACCEPTED.value())
-                            .data(imageService.updateImage(file, imageId, ownerId))
+                            .data(imageService.updateImage(file, imageId, ownerId, accessToken))
                             .build());
         }catch (NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.MULTIPART_FORM_DATA).body(ApiResponse.builder()

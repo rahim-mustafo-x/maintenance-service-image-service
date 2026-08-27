@@ -1,4 +1,4 @@
-package org.safa.maintenanceservice.models.model;
+package org.safa.maintenanceservice.model;
 
 public enum ImageType {
     PROFILE_PICTURE,

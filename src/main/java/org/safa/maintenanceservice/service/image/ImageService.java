@@ -1,29 +1,37 @@
 package org.safa.maintenanceservice.service.image;
 
+import lombok.RequiredArgsConstructor;
+import org.safa.maintenanceservice.feignClient.UserFeignClient;
+import org.safa.maintenanceservice.model.dto.ApiResponse;
+import org.safa.maintenanceservice.model.dto.UserResponse;
 import org.safa.maintenanceservice.models.dto.image.ImageByteResponse;
 import org.safa.maintenanceservice.models.dto.image.ImageResponse;
 import org.safa.maintenanceservice.model.entity.ImageEntity;
 import org.safa.maintenanceservice.model.exceptions.NotFoundException;
-import org.safa.maintenanceservice.models.model.ImageType;
+import org.safa.maintenanceservice.model.ImageType;
 import org.safa.maintenanceservice.repository.ImageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
+@RequiredArgsConstructor
 public class ImageService {
-    @Autowired
-    private ImageRepository imageRepository;
+    private final ImageRepository imageRepository;
+    private final UserFeignClient userFeignClient;
 
-    public ImageResponse save(MultipartFile file, ImageType imageType, long ownerId) throws IOException {
-        if (notExistsByOwnerId(ownerId)){
+    public ImageResponse save(MultipartFile file, ImageType imageType, long ownerId,@Nullable String accessToken) throws IOException {
+        if (notExistsByOwnerId(ownerId, accessToken)){
             throw new NotFoundException("Owner id not found");
         }
         UUID imageId;
-        if (imageType != ImageType.LABOR_WORK){
+        if (imageType == ImageType.PROFILE_PICTURE){
             imageId = imageRepository.findIdByOwnerIdAndImageType(ownerId, imageType).orElse(UUID.randomUUID());
         }else {
             imageId = UUID.randomUUID();
@@ -50,12 +58,12 @@ public class ImageService {
         throw new NotFoundException("Image not found");
     }
 
-    public ImageResponse updateImage(MultipartFile file, UUID id, long ownerId) throws IOException {
+    public ImageResponse updateImage(MultipartFile file, UUID id, long ownerId, @Nullable String accessToken) throws IOException {
         Optional<ImageEntity> imageEntity = imageRepository.findById(id);
         if (imageEntity.isEmpty()) {
             throw new NotFoundException("Image not found");
         }
-        if (notExistsByOwnerId(ownerId)){
+        if (notExistsByOwnerId(ownerId, accessToken)){
             throw new NotFoundException("Owner id not found");
         }
         var image = imageEntity.get();
@@ -74,11 +82,17 @@ public class ImageService {
         imageRepository.delete(imageEntity.get());
         return true;
     }
-
-    //todo implement deployment id concept as well
-    private boolean notExistsByOwnerId(long ownerId) {
-        //check if ownerId exists
-//        return !userRepository.existsById(ownerId);
+    private boolean notExistsByOwnerId(long ownerId, String accessToken) {
+        //check if ownerId not exists
+//        return userRepository.notExistsById(ownerId);
+        if (accessToken != null){
+            ResponseEntity<ApiResponse<UserResponse>> currentUser = userFeignClient.getCurrentUser(accessToken);
+            UserResponse data = currentUser.getBody() != null ? currentUser.getBody().getData() : null;
+            if (data == null) {
+                return true;
+            }
+            return ownerId!=data.id();
+        }
         return false;
     }
 }
