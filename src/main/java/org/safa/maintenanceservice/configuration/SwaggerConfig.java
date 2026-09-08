@@ -14,7 +14,10 @@ public class SwaggerConfig {
         return new OpenAPI()
                 .servers(List.of(new Server()
                         .url("/image-service")
-                        .description("Image Service")
+                        .description("public server"),
+                        new Server()
+                                .url("/")
+                                .description("Local server")
                 )
         );
     }
