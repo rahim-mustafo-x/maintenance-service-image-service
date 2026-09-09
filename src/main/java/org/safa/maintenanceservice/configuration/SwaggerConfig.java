@@ -17,7 +17,7 @@ public class SwaggerConfig {
                         .description("public server"),
                         new Server()
                                 .url("/")
-                                .description("Local server")
+                                .description("local server")
                 )
         );
     }

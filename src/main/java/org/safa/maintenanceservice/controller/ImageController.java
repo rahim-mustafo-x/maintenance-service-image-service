@@ -2,11 +2,11 @@ package org.safa.maintenanceservice.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.safa.maintenanceservice.model.ImageType;
 import org.safa.maintenanceservice.model.dto.ApiResponse;
 import org.safa.maintenanceservice.models.dto.image.ImageByteResponse;
 import org.safa.maintenanceservice.model.exceptions.NotFoundException;
+import org.safa.maintenanceservice.models.dto.image.ImageResponse;
 import org.safa.maintenanceservice.service.image.ImageService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -18,7 +18,6 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/v1/image")
-@Slf4j
 @RequiredArgsConstructor
 public class ImageController {
     private final ImageService imageService;
@@ -34,12 +33,12 @@ public class ImageController {
      * </pre>
      */
     @PostMapping
-    public ResponseEntity<ApiResponse<?>> saveImage(@RequestPart MultipartFile file, @RequestParam long ownerId, @RequestParam ImageType imageType, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<ImageResponse>> saveImage(@RequestPart MultipartFile file, @RequestParam long ownerId, @RequestParam ImageType imageType, HttpServletRequest request) {
         try {
             String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.builder()
+                    .body(ApiResponse.<ImageResponse>builder()
                             .code(HttpStatus.CREATED.value())
                             .data(imageService.save(file, imageType, ownerId, accessToken))
                             .message(null)
@@ -47,14 +46,14 @@ public class ImageController {
         }catch (NotFoundException e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.builder()
+                    .body(ApiResponse.<ImageResponse>builder()
                             .code(HttpStatus.NOT_FOUND.value())
                             .data(null)
                             .message(e.getMessage())
                             .build());
         }catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.builder()
+                    .body(ApiResponse.<ImageResponse>builder()
                     .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
                     .data(null)
                     .message(e.getMessage())
@@ -75,19 +74,17 @@ public class ImageController {
     }
 
     @GetMapping("/data/{imageId}")
-    public ResponseEntity<ApiResponse<?>> getImageData(@PathVariable UUID imageId) {
+    public ResponseEntity<ApiResponse<ImageResponse>> getImageData(@PathVariable UUID imageId) {
         try {
-            var data = imageService.getImageResponse(imageId);
-            log.debug(data.toString());
             return ResponseEntity.status(HttpStatus.OK)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.builder()
+                    .body(ApiResponse.<ImageResponse>builder()
                             .code(HttpStatus.OK.value())
-                            .data(data)
+                            .data(imageService.getImageResponse(imageId))
                             .build());
         }catch (NotFoundException e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(ApiResponse.builder()
+                    .body(ApiResponse.<ImageResponse>builder()
                     .code(HttpStatus.NOT_FOUND.value())
                     .message(e.getMessage())
                     .build());
