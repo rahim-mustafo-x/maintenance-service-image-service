@@ -1,0 +1,187 @@
+name: Deploy Image Service
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # --------------------------------------------------
+      # 1. Install Cloudflare Tunnel
+      # --------------------------------------------------
+      - name: Install cloudflared
+        run: |
+          curl -L \
+            --output cloudflared.deb \
+            https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+
+          sudo dpkg -i cloudflared.deb
+
+      # --------------------------------------------------
+      # 2. Configure SSH
+      # --------------------------------------------------
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY_B64: ${{ secrets.DEPLOY_SSH_KEY_B64 }}
+          CLOUDFLARE_ACCESS_CLIENT_ID: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_ID }}
+          CLOUDFLARE_ACCESS_CLIENT_SECRET: ${{ secrets.CLOUDFLARE_ACCESS_CLIENT_SECRET }}
+
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          printf '%s' "$DEPLOY_SSH_KEY_B64" \
+            | base64 --decode \
+            > ~/.ssh/deploy_key
+
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null
+
+          cat > ~/.ssh/config << EOF
+          Host ${{ secrets.DEPLOY_HOST }}
+              HostName ${{ secrets.DEPLOY_HOST }}
+              User ${{ secrets.DEPLOY_USER }}
+              IdentityFile ~/.ssh/deploy_key
+              IdentitiesOnly yes
+              ProxyCommand env CLOUDFLARE_ACCESS_CLIENT_ID="$CLOUDFLARE_ACCESS_CLIENT_ID" CLOUDFLARE_ACCESS_CLIENT_SECRET="$CLOUDFLARE_ACCESS_CLIENT_SECRET" cloudflared access ssh --hostname %h
+              StrictHostKeyChecking no
+          EOF
+
+          chmod 600 ~/.ssh/config
+
+      # --------------------------------------------------
+      # 3. Test SSH connection
+      # --------------------------------------------------
+      - name: Test SSH connection
+        run: |
+          ssh \
+            -o ConnectTimeout=15 \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "echo 'SSH connection successful'"
+
+      # --------------------------------------------------
+      # 4. Deploy Image Service
+      # --------------------------------------------------
+      - name: Deploy Image Service
+        env:
+          PORT: ${{ secrets.IMAGE_PORT }}
+          DATABASE_URL: ${{ secrets.IMAGE_DATABASE_URL }}
+          DATABASE_USERNAME: ${{ secrets.IMAGE_DATABASE_USERNAME }}
+          DATABASE_PASSWORD: ${{ secrets.IMAGE_DATABASE_PASSWORD }}
+          EUREKA_URL: ${{ secrets.EUREKA_URL }}
+
+        run: |
+          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" << EOF
+            set -e
+
+            PROJECT_DIR="/opt/maintenance-service-image-service"
+
+            echo "========================================"
+            echo "Checking project directory..."
+            echo "========================================"
+
+            if [ ! -d "\$PROJECT_DIR" ]; then
+              echo "ERROR: Image Service directory does not exist:"
+              echo "\$PROJECT_DIR"
+              exit 1
+            fi
+
+            cd "\$PROJECT_DIR"
+
+            echo "========================================"
+            echo "Current directory:"
+            echo "\$PWD"
+            echo "========================================"
+
+            echo "========================================"
+            echo "Pulling latest code..."
+            echo "========================================"
+
+            git fetch origin master
+            git reset --hard origin/master
+
+            echo "========================================"
+            echo "Creating production .env..."
+            echo "========================================"
+
+            if [ ! -f .env.example ]; then
+              echo "ERROR: .env.example does not exist"
+              exit 1
+            fi
+
+            cp .env.example .env
+
+            sed -i \
+              -e "s|^PORT=.*|PORT=$PORT|" \
+              -e "s|^DATABASE_URL=.*|DATABASE_URL=$DATABASE_URL|" \
+              -e "s|^DATABASE_USERNAME=.*|DATABASE_USERNAME=$DATABASE_USERNAME|" \
+              -e "s|^DATABASE_PASSWORD=.*|DATABASE_PASSWORD=$DATABASE_PASSWORD|" \
+              -e "s|^EUREKA_URL=.*|EUREKA_URL=$EUREKA_URL|" \
+              .env
+
+            chmod 600 .env
+
+            echo "========================================"
+            echo "Docker Compose services:"
+            echo "========================================"
+
+            docker compose config --services
+
+            echo "========================================"
+            echo "Checking Image Service..."
+            echo "========================================"
+
+            if ! docker compose config --services | grep -qx "image-service"; then
+              echo "ERROR: 'image-service' is not defined in Docker Compose"
+              exit 1
+            fi
+
+            echo "Image Service found."
+
+            echo "========================================"
+            echo "Validating Docker Compose..."
+            echo "========================================"
+
+            docker compose config > /dev/null
+
+            echo "Docker Compose configuration is valid."
+
+            echo "========================================"
+            echo "Building Image Service..."
+            echo "========================================"
+
+            docker compose build --pull image-service
+
+            echo "========================================"
+            echo "Starting Image Service..."
+            echo "========================================"
+
+            docker compose up -d image-service
+
+            echo "========================================"
+            echo "Removing unused Docker images..."
+            echo "========================================"
+
+            docker image prune -f
+
+            echo "========================================"
+            echo "Deployment status:"
+            echo "========================================"
+
+            docker compose ps
+
+            echo "========================================"
+            echo "Image Service logs:"
+            echo "========================================"
+
+            docker compose logs --tail=50 image-service
+
+            echo "========================================"
+            echo "Deployment complete."
+            echo "========================================"
+          EOF
