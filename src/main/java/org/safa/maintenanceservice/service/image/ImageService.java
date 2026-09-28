@@ -1,5 +1,6 @@
 package org.safa.maintenanceservice.service.image;
 
+import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import org.safa.maintenanceservice.feignClient.UserFeignClient;
 import org.safa.maintenanceservice.model.dto.ApiResponse;
@@ -10,12 +11,9 @@ import org.safa.maintenanceservice.model.entity.ImageEntity;
 import org.safa.maintenanceservice.model.exceptions.NotFoundException;
 import org.safa.maintenanceservice.model.ImageType;
 import org.safa.maintenanceservice.repository.ImageRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
