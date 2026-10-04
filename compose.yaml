@@ -16,6 +16,3 @@ services:
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    depends_on:
-      service-registry:
-        condition: service_healthy
