@@ -16,3 +16,15 @@ services:
 
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+    networks:
+      - maintenance-net
+      - service-registry-network
+
+networks:
+  maintenance-net:
+    external: true
+
+  service-registry-network:
+    external: true
+    name: maintenance-service_default
