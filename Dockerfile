@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM eclipse-temurin:17-jdk-jammy AS build
+FROM eclipse-temurin:25-jdk-jammy AS build
 
 WORKDIR /build
 
@@ -24,7 +24,7 @@ RUN --mount=type=cache,target=/root/.m2 \
         -DforceStdout).jar target/app.jar
 
 
-FROM eclipse-temurin:17-jre-jammy AS final
+FROM eclipse-temurin:25-jre-jammy AS final
 
 ARG UID=10001
 

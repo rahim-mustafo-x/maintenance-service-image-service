@@ -1,12 +1,14 @@
-package org.safa.maintenanceservice.service.image;
+package org.safa.maintenanceservice.service;
 
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.safa.maintenanceservice.feignClient.UserFeignClient;
+import org.safa.maintenanceservice.fileSystem.ImageFileSystemService;
 import org.safa.maintenanceservice.model.dto.ApiResponse;
 import org.safa.maintenanceservice.model.dto.UserResponse;
-import org.safa.maintenanceservice.models.dto.image.ImageByteResponse;
-import org.safa.maintenanceservice.models.dto.image.ImageResponse;
+import org.safa.maintenanceservice.model.dto.ImageByteResponse;
+import org.safa.maintenanceservice.model.dto.ImageResponse;
 import org.safa.maintenanceservice.model.entity.ImageEntity;
 import org.safa.maintenanceservice.model.exceptions.NotFoundException;
 import org.safa.maintenanceservice.model.ImageType;
@@ -14,6 +16,7 @@ import org.safa.maintenanceservice.repository.ImageRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,6 +26,7 @@ import java.util.UUID;
 public class ImageService {
     private final ImageRepository imageRepository;
     private final UserFeignClient userFeignClient;
+    private final ImageFileSystemService imageFileSystemService;
 
     public ImageResponse save(MultipartFile file, ImageType imageType, long ownerId,@Nullable String accessToken) throws IOException {
         if (notExistsByOwnerId(ownerId, accessToken)){
@@ -34,15 +38,22 @@ public class ImageService {
         }else {
             imageId = UUID.randomUUID();
         }
-        ImageEntity save = imageRepository.save(new ImageEntity(imageId, file.getBytes(), file.getContentType(), file.getOriginalFilename(), imageType, ownerId));
-        return new ImageResponse(save.getId(), save.getContentType(), save.getFileName(), save.getOwnerId(), save.getImageType());
+        var imagePath = pathGenerator();
+        if (imageFileSystemService.saveImage(file.getBytes(), imagePath)){
+            ImageEntity save = imageRepository.save(new ImageEntity(imageId, file.getContentType(), imagePath, imageType, ownerId));
+            return new ImageResponse(save.getId(), save.getContentType(), save.getOwnerId(), save.getImageType());
+        }
+        return null;
     }
 
     public ImageByteResponse getImageAsByteArray(UUID id) {
         Optional<ImageEntity> imageEntity = imageRepository.findById(id);
         if (imageEntity.isPresent()) {
             var image = imageEntity.get();
-            return new ImageByteResponse(image.getData(), image.getContentType());
+            var imagePath = image.getFilePath();
+            if (imageFileSystemService.exists(imagePath)){
+                return new ImageByteResponse(imageFileSystemService.getImage(imagePath), image.getContentType());
+            }
         }
         throw new NotFoundException("Image not found");
     }
@@ -51,7 +62,7 @@ public class ImageService {
         Optional<ImageEntity> imageEntity = imageRepository.findById(id);
         if (imageEntity.isPresent()) {
             var image = imageEntity.get();
-            return new ImageResponse(image.getId(), image.getContentType(), image.getFileName(), image.getOwnerId(), image.getImageType());
+            return new ImageResponse(image.getId(), image.getContentType(), image.getOwnerId(), image.getImageType());
         }
         throw new NotFoundException("Image not found");
     }
@@ -65,20 +76,23 @@ public class ImageService {
             throw new NotFoundException("Owner id not found");
         }
         var image = imageEntity.get();
-        image.setData(file.getBytes());
+        imageFileSystemService.saveImage(file.getBytes(), image.getFilePath());
         image.setContentType(file.getContentType());
-        image.setFileName(file.getOriginalFilename());
         ImageEntity save = imageRepository.save(image);
-        return new ImageResponse(save.getId(), save.getContentType(), save.getFileName(), image.getOwnerId(), image.getImageType());
+        return new ImageResponse(save.getId(), save.getContentType(), image.getOwnerId(), image.getImageType());
     }
 
     public boolean deleteImage(UUID id) {
+        var result = false;
         Optional<ImageEntity> imageEntity = imageRepository.findById(id);
         if (imageEntity.isEmpty()) {
             throw new NotFoundException("Image not found");
         }
-        imageRepository.delete(imageEntity.get());
-        return true;
+        if (imageFileSystemService.deleteImage(imageEntity.get().getFilePath())) {
+            imageRepository.delete(imageEntity.get());
+            result = true;
+        }
+        return result;
     }
     private boolean notExistsByOwnerId(long ownerId, String accessToken) {
         //check if ownerId not exists
@@ -92,5 +106,9 @@ public class ImageService {
             return ownerId!=data.id();
         }
         return false;
+    }
+    private @NonNull String pathGenerator(){
+        var filename = String.valueOf(System.currentTimeMillis());
+        return ImageFileSystemService.STORAGE_PATH+ File.separator +filename;
     }
 }

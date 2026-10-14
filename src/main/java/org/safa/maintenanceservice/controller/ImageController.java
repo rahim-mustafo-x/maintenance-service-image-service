@@ -4,16 +4,18 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.safa.maintenanceservice.model.ImageType;
 import org.safa.maintenanceservice.model.dto.ApiResponse;
-import org.safa.maintenanceservice.models.dto.image.ImageByteResponse;
+import org.safa.maintenanceservice.model.dto.ImageByteResponse;
 import org.safa.maintenanceservice.model.exceptions.NotFoundException;
-import org.safa.maintenanceservice.models.dto.image.ImageResponse;
-import org.safa.maintenanceservice.service.image.ImageService;
+import org.safa.maintenanceservice.model.dto.ImageResponse;
+import org.safa.maintenanceservice.service.ImageService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 import java.util.UUID;
 
 @RestController
@@ -48,6 +50,13 @@ public class ImageController {
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(ApiResponse.<ImageResponse>builder()
                             .code(HttpStatus.NOT_FOUND.value())
+                            .data(null)
+                            .message(e.getMessage())
+                            .build());
+        }catch(IOException e){
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.<ImageResponse>builder()
+                            .code(HttpStatus.EXPECTATION_FAILED.value())
                             .data(null)
                             .message(e.getMessage())
                             .build());
@@ -105,7 +114,15 @@ public class ImageController {
                     .code(HttpStatus.NOT_FOUND.value())
                     .message(e.getMessage())
                     .build());
-        }catch(Exception e){
+        }catch(IOException e){
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.<ImageResponse>builder()
+                            .code(HttpStatus.EXPECTATION_FAILED.value())
+                            .data(null)
+                            .message(e.getMessage())
+                            .build());
+        }
+        catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body(ApiResponse.builder()
                     .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
                     .message(e.getMessage())
@@ -115,12 +132,21 @@ public class ImageController {
     @DeleteMapping("/{imageId}")
     public ResponseEntity<ApiResponse<?>> deleteImage(@PathVariable UUID imageId) {
         try {
-            return ResponseEntity.status(HttpStatus.OK)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.builder()
-                            .code(HttpStatus.OK.value())
-                            .data(imageService.deleteImage(imageId))
-                            .build());
+            if (imageService.deleteImage(imageId)){
+                return ResponseEntity.status(HttpStatus.OK)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(ApiResponse.builder()
+                                .code(HttpStatus.OK.value())
+                                .data(true)
+                                .build());
+            }else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(ApiResponse.builder()
+                                .code(HttpStatus.NOT_FOUND.value())
+                                .data(false)
+                                .build());
+            }
         }catch (NotFoundException e){
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .contentType(MediaType.APPLICATION_JSON)

@@ -1,4 +1,4 @@
-package org.safa.maintenanceservice.models.dto.image;
+package org.safa.maintenanceservice.model.dto;
 
 public record ImageByteResponse(
         byte[] data,
