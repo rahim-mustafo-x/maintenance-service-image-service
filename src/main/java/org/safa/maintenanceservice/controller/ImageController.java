@@ -34,7 +34,7 @@ public class ImageController {
      *  (____________)
      * </pre>
      */
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ImageResponse>> saveImage(@RequestPart MultipartFile file, @RequestParam long ownerId, @RequestParam ImageType imageType, HttpServletRequest request) {
         try {
             String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION);
@@ -99,7 +99,7 @@ public class ImageController {
                     .build());
         }
     }
-    @PutMapping
+    @PutMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<?>> updateImage(@RequestPart MultipartFile file, @RequestParam UUID imageId, @RequestParam long ownerId, HttpServletRequest request) {
         try {
             String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION);
