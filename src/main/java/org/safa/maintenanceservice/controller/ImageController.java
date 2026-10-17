@@ -35,14 +35,15 @@ public class ImageController {
      * </pre>
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<ImageResponse>> saveImage(@RequestPart MultipartFile file, @RequestParam long ownerId, @RequestParam ImageType imageType, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<ImageResponse>> saveImage(
+            @RequestPart("image") MultipartFile image, @RequestParam long ownerId, @RequestParam ImageType imageType, HttpServletRequest request) {
         try {
             String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(ApiResponse.<ImageResponse>builder()
                             .code(HttpStatus.CREATED.value())
-                            .data(imageService.save(file, imageType, ownerId, accessToken))
+                            .data(imageService.save(image, imageType, ownerId, accessToken))
                             .message(null)
                             .build());
         }catch (NotFoundException e){
@@ -100,14 +101,15 @@ public class ImageController {
         }
     }
     @PutMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<?>> updateImage(@RequestPart MultipartFile file, @RequestParam UUID imageId, @RequestParam long ownerId, HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<?>> updateImage(
+            @RequestPart("image") MultipartFile image, @RequestParam UUID imageId, @RequestParam long ownerId, HttpServletRequest request) {
         try {
             String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION);
             return ResponseEntity.status(HttpStatus.ACCEPTED)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(ApiResponse.builder()
                             .code(HttpStatus.ACCEPTED.value())
-                            .data(imageService.updateImage(file, imageId, ownerId, accessToken))
+                            .data(imageService.updateImage(image, imageId, ownerId, accessToken))
                             .build());
         }catch (NotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(MediaType.MULTIPART_FORM_DATA).body(ApiResponse.builder()
