@@ -1,5 +1,6 @@
 package org.safa.maintenanceservice.service;
 
+import feign.FeignException;
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
@@ -12,6 +13,7 @@ import org.safa.maintenanceservice.model.dto.ImageResponse;
 import org.safa.maintenanceservice.model.entity.ImageEntity;
 import org.safa.maintenanceservice.model.exceptions.NotFoundException;
 import org.safa.maintenanceservice.model.ImageType;
+import org.safa.maintenanceservice.model.exceptions.Unauthorized;
 import org.safa.maintenanceservice.repository.ImageRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -97,13 +99,17 @@ public class ImageService {
     private boolean notExistsByOwnerId(long ownerId, String accessToken) {
         //check if ownerId not exists
 //        return userRepository.notExistsById(ownerId);
-        if (accessToken != null){
-            ResponseEntity<ApiResponse<UserResponse>> currentUser = userFeignClient.getCurrentUser(accessToken);
-            UserResponse data = currentUser.getBody() != null ? currentUser.getBody().getData() : null;
-            if (data == null) {
-                return true;
+        try {
+            if (accessToken != null){
+                ResponseEntity<ApiResponse<UserResponse>> currentUser = userFeignClient.getCurrentUser(accessToken);
+                UserResponse data = currentUser.getBody() != null ? currentUser.getBody().getData() : null;
+                if (data == null) {
+                    return true;
+                }
+                return ownerId!=data.id();
             }
-            return ownerId!=data.id();
+        }catch (FeignException.Unauthorized e){
+            throw new Unauthorized(e.getMessage());
         }
         return false;
     }

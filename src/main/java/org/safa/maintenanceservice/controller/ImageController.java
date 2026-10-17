@@ -7,6 +7,7 @@ import org.safa.maintenanceservice.model.dto.ApiResponse;
 import org.safa.maintenanceservice.model.dto.ImageByteResponse;
 import org.safa.maintenanceservice.model.exceptions.NotFoundException;
 import org.safa.maintenanceservice.model.dto.ImageResponse;
+import org.safa.maintenanceservice.model.exceptions.Unauthorized;
 import org.safa.maintenanceservice.service.ImageService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -58,6 +59,13 @@ public class ImageController {
             return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).contentType(MediaType.APPLICATION_JSON)
                     .body(ApiResponse.<ImageResponse>builder()
                             .code(HttpStatus.EXPECTATION_FAILED.value())
+                            .data(null)
+                            .message(e.getMessage())
+                            .build());
+        }catch(Unauthorized e){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.<ImageResponse>builder()
+                            .code(HttpStatus.UNAUTHORIZED.value())
                             .data(null)
                             .message(e.getMessage())
                             .build());
@@ -123,8 +131,14 @@ public class ImageController {
                             .data(null)
                             .message(e.getMessage())
                             .build());
-        }
-        catch(Exception e){
+        }catch(Unauthorized e){
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
+                    .body(ApiResponse.<ImageResponse>builder()
+                            .code(HttpStatus.UNAUTHORIZED.value())
+                            .data(null)
+                            .message(e.getMessage())
+                            .build());
+        }catch(Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON).body(ApiResponse.builder()
                     .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
                     .message(e.getMessage())
