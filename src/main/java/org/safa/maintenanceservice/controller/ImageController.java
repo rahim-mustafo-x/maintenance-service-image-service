@@ -37,48 +37,40 @@ public class ImageController {
      */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<ImageResponse>> saveImage(
-            @RequestPart("image") MultipartFile image, @RequestParam long ownerId, @RequestParam ImageType imageType, HttpServletRequest request) {
+            @RequestPart("image") MultipartFile image,
+            @RequestParam long ownerId,
+            @RequestParam ImageType imageType,
+            HttpServletRequest request) {
         try {
             String accessToken = request.getHeader(HttpHeaders.AUTHORIZATION);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.<ImageResponse>builder()
-                            .code(HttpStatus.CREATED.value())
-                            .data(imageService.save(image, imageType, ownerId, accessToken))
-                            .message(null)
-                            .build());
-        }catch (NotFoundException e){
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.<ImageResponse>builder()
-                            .code(HttpStatus.NOT_FOUND.value())
-                            .data(null)
-                            .message(e.getMessage())
-                            .build());
-        }catch(IOException e){
-            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.<ImageResponse>builder()
-                            .code(HttpStatus.EXPECTATION_FAILED.value())
-                            .data(null)
-                            .message(e.getMessage())
-                            .build());
-        }catch(Unauthorized e){
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.<ImageResponse>builder()
-                            .code(HttpStatus.UNAUTHORIZED.value())
-                            .data(null)
-                            .message(e.getMessage())
-                            .build());
-        }catch(Exception e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).contentType(MediaType.APPLICATION_JSON)
-                    .body(ApiResponse.<ImageResponse>builder()
-                    .code(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                    .data(null)
-                    .message(e.getMessage())
-                    .build());
+            ImageResponse saved = imageService.save(image, imageType, ownerId, accessToken);
+
+            if (saved == null) {   // service returns null when the file could not be written
+                return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, null, "Failed to store image file");
+            }
+            return buildResponse(HttpStatus.CREATED, saved, null);
+
+        } catch (NotFoundException e) {
+            return buildResponse(HttpStatus.NOT_FOUND, null, e.getMessage());
+        } catch (Unauthorized e) {
+            return buildResponse(HttpStatus.UNAUTHORIZED, null, e.getMessage());
+        } catch (IOException e) {
+            return buildResponse(HttpStatus.EXPECTATION_FAILED, null, e.getMessage());
+        } catch (Exception e) {
+            return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, null, e.getMessage());
         }
     }
 
+    private ResponseEntity<ApiResponse<ImageResponse>> buildResponse(
+            HttpStatus status, ImageResponse data, String message) {
+        return ResponseEntity.status(status)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiResponse.<ImageResponse>builder()
+                        .code(status.value())
+                        .data(data)
+                        .message(message)
+                        .build());
+    }
     @GetMapping("/{imageId}")
     public ResponseEntity<byte[]> getImage(@PathVariable UUID imageId) {
         try {

@@ -1,10 +1,15 @@
 package org.safa.maintenanceservice.fileSystem;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 @Service
+@Slf4j
 public class ImageFileSystemServiceImpl implements ImageFileSystemService {
 
     public ImageFileSystemServiceImpl() {
@@ -17,17 +22,18 @@ public class ImageFileSystemServiceImpl implements ImageFileSystemService {
 
     @Override
     public boolean saveImage(byte[] fileInBytes, String path) {
-        var result = false;
-        var file = new File(path);
-        if (!file.exists()){
-            try {
-                var fileOutputStream = new FileOutputStream(file, false);
-                fileOutputStream.write(fileInBytes);
-                fileOutputStream.close();
-                result = true;
-            } catch (IOException _) {}
+        try {
+            Path target = Paths.get(path);
+            Path parent = target.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);   // creates the folder if missing
+            }
+            Files.write(target, fileInBytes);      // creates or overwrites, closes the stream
+            return true;
+        } catch (IOException e) {
+            log.error("Failed to save image to {}", path, e);   // never swallow silently
+            return false;
         }
-        return result;
     }
     @Override
     public boolean deleteImage(String path) {
